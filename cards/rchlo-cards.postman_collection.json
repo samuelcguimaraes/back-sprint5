@@ -1,0 +1,243 @@
+{
+	"info": {
+		"_postman_id": "3362961c-a87d-4c1b-9381-44e48bae33d8",
+		"name": "rchlo-cards",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "GET /transactions/{uuid}",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/transactions/51df3c11-4839-465b-b991-4849929896ce",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions",
+						"51df3c11-4839-465b-b991-4849929896ce"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST /transactions - create transaction",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"amount\": 199.9,\n    \"description\": \"Jaqueta Puffer Juvenil Com Capuz Super Mario Branco Tam 10 a 18\",\n    \"cardHolderName\": \"CAROLINE SOUZA\",\n    \"cardNumber\": \"1234123412341234\",\n    \"cardExpiration\": \"2023-06\",\n    \"cardSecurityCode\": \"234\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST /transactions - invalid card",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"amount\": 199.9,\n    \"description\": \"Jaqueta Puffer Juvenil Com Capuz Super Mario Branco Tam 10 a 18\",\n    \"cardHolderName\": \"CACA SOUZA\",\n    \"cardNumber\": \"1234123412341234\",\n    \"cardExpiration\": \"2024-07\",\n    \"cardSecurityCode\": \"999\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST /transactions - more than limit",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"amount\": 30749.00,\n    \"description\": \"iMac 27 pol. + i7 (10ª geração) 8 cores 3,8 GHz + memória DDR4 8 GB 2666 MHz + SSD 512 GB\",\n    \"cardHolderName\": \"CAROLINE SOUZA\",\n    \"cardNumber\": \"1234123412341234\",\n    \"cardExpiration\": \"2023-06\",\n    \"cardSecurityCode\": \"234\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST /transactions - uses all limit",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"amount\": 15000.00,\n    \"description\": \"MacBook Air Chip M1 8 núcleos + memória 8 GB + SSD 512 GB\",\n    \"cardHolderName\": \"CAROLINE SOUZA\",\n    \"cardNumber\": \"1234123412341234\",\n    \"cardExpiration\": \"2023-06\",\n    \"cardSecurityCode\": \"234\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PUT /transactions/{uuid} - confirm transaction",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/transactions/51df3c11-4839-465b-b991-4849929896ce",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions",
+						"51df3c11-4839-465b-b991-4849929896ce"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PUT /transactions/{uuid} - invalid status",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/transactions/0e4ed209-6ab6-4db0-a297-80bdd5e0713f",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions",
+						"0e4ed209-6ab6-4db0-a297-80bdd5e0713f"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PUT /transactions/{uuid} - cancel transaction",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/transactions/c57e19cb-702f-42b4-984f-6454d8c4606b",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions",
+						"c57e19cb-702f-42b4-984f-6454d8c4606b"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PUT /transactions/{uuid} - invalid status",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/transactions/fe8c0090-165f-401f-a2e0-3cbf31ec3d2d",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"transactions",
+						"fe8c0090-165f-401f-a2e0-3cbf31ec3d2d"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET /admin/cards/statistics/{number} - card statistics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/admin/cards/statistics/1111222233334444",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"admin",
+						"cards",
+						"statistics",
+						"1111222233334444"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
