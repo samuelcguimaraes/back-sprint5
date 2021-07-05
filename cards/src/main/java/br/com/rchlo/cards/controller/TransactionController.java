@@ -22,7 +22,6 @@ import javax.transaction.Transactional;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -46,9 +45,9 @@ public class TransactionController {
 
     @GetMapping("/transactions/{uuid}")
     public ResponseEntity<TransactionResponseDto> detail(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                .setParameter("uuid", uuid)
-                .getResultStream().findFirst();
+        Optional<Transaction> possibleTransaction = this.entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
+                                                                            .setParameter("uuid", uuid)
+                                                                            .getResultStream().findFirst();
         Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return ResponseEntity.ok().body(new TransactionResponseDto(transaction));
     }
@@ -58,13 +57,13 @@ public class TransactionController {
     public ResponseEntity<TransactionResponseDto> create(@RequestBody @Valid TransactionRequestDto transactionRequest, UriComponentsBuilder uriBuilder) {
 
         // inicio validacao se card existe
-        Optional<Card> possibleCard = entityManager.createQuery("select c from Card c where c.number = :number " +
-                " and c.holderName = :name and c.expiration = :expiration and c.securityCode = :code", Card.class)
-                .setParameter("number", transactionRequest.getCardNumber())
-                .setParameter("name", transactionRequest.getCardHolderName())
-                .setParameter("expiration", transactionRequest.getCardExpiration().toString())
-                .setParameter("code", transactionRequest.getCardSecurityCode())
-                .getResultStream().findFirst();
+        Optional<Card> possibleCard = this.entityManager.createQuery("select c from Card c where c.number = :number " +
+                                                                           " and c.holderName = :name and c.expiration = :expiration and c.securityCode = :code", Card.class)
+                                                              .setParameter("number", transactionRequest.getCardNumber())
+                                                              .setParameter("name", transactionRequest.getCardHolderName())
+                                                              .setParameter("expiration", transactionRequest.getCardExpiration().toString())
+                                                              .setParameter("code", transactionRequest.getCardSecurityCode())
+                                                              .getResultStream().findFirst();
         Card card = possibleCard.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card"));
         // fim validacao se card existe
 
@@ -75,8 +74,8 @@ public class TransactionController {
         // fim verificacao limite disponivel
 
         // inicio verificacao de fraude
-        List<FraudVerifier> enabledFraudVerifiers = entityManager.createQuery("select fv from FraudVerifier fv where fv.enabled = true", FraudVerifier.class)
-                .getResultList();
+        List<FraudVerifier> enabledFraudVerifiers = this.entityManager.createQuery("select fv from FraudVerifier fv where fv.enabled = true", FraudVerifier.class)
+                                                                            .getResultList();
 
         // fraude: gastar o limite de uma vez
         if (enabledFraudVerifiers.stream().map(FraudVerifier::getType)
@@ -91,10 +90,10 @@ public class TransactionController {
                 .anyMatch(FraudVerifier.Type.TOO_FAST::equals)) {
             LocalDateTime timeOfLastConfirmedTransactionForCard = null;
             try {
-                timeOfLastConfirmedTransactionForCard = entityManager.createQuery("select max(t.createdAt) from Transaction  t where t.card = :card " +
-                        " and t.status = :status", LocalDateTime.class)
-                        .setParameter("card", card)
-                        .setParameter("status", Transaction.Status.CONFIRMED).getSingleResult();
+                timeOfLastConfirmedTransactionForCard = this.entityManager.createQuery("select max(t.createdAt) from Transaction  t where t.card = :card " +
+                                                                                       " and t.status = :status", LocalDateTime.class)
+                                                                          .setParameter("card", card)
+                                                                          .setParameter("status", Transaction.Status.CONFIRMED).getSingleResult();
             } catch (NoResultException ex) { }
             if (timeOfLastConfirmedTransactionForCard != null) {
                 long secondsFromLastConfirmedTransactionForCard = ChronoUnit.SECONDS.between(timeOfLastConfirmedTransactionForCard, LocalDateTime.now());
@@ -107,7 +106,7 @@ public class TransactionController {
 
         // salva transacao
         Transaction transaction = transactionRequest.asEntity(card);
-        entityManager.persist(transaction);
+        this.entityManager.persist(transaction);
 
         URI uri = uriBuilder.path("/transactions/{uuid}").buildAndExpand(transaction.getUuid()).toUri();
         return ResponseEntity.created(uri).body(new TransactionResponseDto(transaction));
@@ -116,9 +115,9 @@ public class TransactionController {
     @Transactional
     @PutMapping("/transactions/{uuid}")
     public ResponseEntity<Void> confirm(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                .setParameter("uuid", uuid)
-                .getResultStream().findFirst();
+        Optional<Transaction> possibleTransaction = this.entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
+                                                                            .setParameter("uuid", uuid)
+                                                                            .getResultStream().findFirst();
         Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!Transaction.Status.CREATED.equals(transaction.getStatus())) {
@@ -129,13 +128,12 @@ public class TransactionController {
 
         // atualiza limite do cartao
         Card card = transaction.getCard();
-        BigDecimal newCardLimit = card.getAvailableLimit().subtract(transaction.getAmount());
-        card.setAvailableLimit(newCardLimit);
+        card.updateAvailableLimit(transaction.getAmount());
 
         // inicio criacao texto de notificacao
         String notificationText = "";
         try {
-            Template template = freemarker.getTemplate("expense-notification.ftl");
+            Template template = this.freemarker.getTemplate("expense-notification.ftl");
             Map<String, Object> data = new HashMap<>();
             data.put("transaction", transaction);
             StringWriter out = new StringWriter();
@@ -152,7 +150,7 @@ public class TransactionController {
         message.setTo(card.getCustomer().getEmail());
         message.setSubject("Nova despesa: " + transaction.getDescription());
         message.setText(notificationText);
-        mailSender.send(message);   // para verificar o email enviado acesse: https://www.smtpbucket.com/emails.
+        this.mailSender.send(message);   // para verificar o email enviado acesse: https://www.smtpbucket.com/emails.
                                     // Coloque noreply@rchlo.com.br em Sender e o email do cliente no Recipient.
         // fim envio notificacao por email
 
@@ -162,9 +160,9 @@ public class TransactionController {
     @Transactional
     @DeleteMapping("/transactions/{uuid}")
     public ResponseEntity<Void> cancel(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                .setParameter("uuid", uuid)
-                .getResultStream().findFirst();
+        Optional<Transaction> possibleTransaction = this.entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
+                                                                            .setParameter("uuid", uuid)
+                                                                            .getResultStream().findFirst();
         Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!Transaction.Status.CREATED.equals(transaction.getStatus())) {

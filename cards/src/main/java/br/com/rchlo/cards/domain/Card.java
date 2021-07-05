@@ -38,16 +38,17 @@ public class Card {
         this.availableLimit = availableLimit;
         this.customer = customer;
     }
-
+    
     public BigDecimal getAvailableLimit() {
-        return availableLimit;
+        return this.availableLimit;
     }
-
-    public void setAvailableLimit(BigDecimal availableLimit) {
-        this.availableLimit = availableLimit;
-    }
-
+    
     public Customer getCustomer() {
-        return customer;
+        return this.customer;
+    }
+    
+    public void updateAvailableLimit(BigDecimal amount) {
+        BigDecimal newCardLimit = this.getAvailableLimit().subtract(amount);
+        this.availableLimit = newCardLimit;
     }
 }
