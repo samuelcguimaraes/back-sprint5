@@ -48,7 +48,10 @@ public class Card {
     }
     
     public void updateAvailableLimit(BigDecimal amount) {
-        BigDecimal newCardLimit = this.getAvailableLimit().subtract(amount);
-        this.availableLimit = newCardLimit;
+        this.availableLimit = this.getAvailableLimit().subtract(amount);
+    }
+    
+    public boolean hasNotAvailableLimit(BigDecimal amount) {
+        return amount.compareTo(this.availableLimit) > 0;
     }
 }
