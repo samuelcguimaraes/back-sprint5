@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static br.com.rchlo.cards.domain.Transaction.Status.*;
+
 @Entity
 public class Transaction {
 
@@ -29,43 +31,65 @@ public class Transaction {
         this.description = description;
         this.card = card;
         this.uuid = UUID.randomUUID().toString();
-        this.status = Status.CREATED;
+        this.status = CREATED;
         this.createdAt = LocalDateTime.now();
     }
 
     public String getUuid() {
-        return uuid;
+        return this.uuid;
     }
 
     public Status getStatus() {
-        return status;
+        return this.status;
     }
 
     public String getDescription() {
-        return description;
+        return this.description;
     }
 
     public BigDecimal getAmount() {
-        return amount;
+        return this.amount;
     }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
+    
     public Card getCard() {
-        return card;
+        return this.card;
     }
-
+    
     public LocalDateTime getCreatedAt() {
-        return createdAt;
+        return this.createdAt;
     }
-
+    
+    public boolean isCreated() {
+        return CREATED.equals(this.status);
+    }
+    
+    public boolean confirm() {
+        
+        if (!this.isCreated()) {
+            return false;
+        }
+        
+        this.status = CONFIRMED;
+        
+        return true;
+    }
+    
+    public boolean cancel() {
+        
+        if (!this.isCreated()) {
+            return false;
+        }
+        
+        this.status = CANCELED;
+        
+        return true;
+    }
+    
     public enum Status {
-
+        
         CREATED,
         CONFIRMED,
-        CANCELED;
-
+        CANCELED
+        
     }
 }

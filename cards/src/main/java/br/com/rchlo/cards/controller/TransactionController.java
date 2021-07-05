@@ -120,11 +120,9 @@ public class TransactionController {
                                                                             .getResultStream().findFirst();
         Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (!Transaction.Status.CREATED.equals(transaction.getStatus())) {
+        if (!transaction.confirm()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid transaction status");
         }
-
-        transaction.setStatus(Transaction.Status.CONFIRMED);
 
         // atualiza limite do cartao
         Card card = transaction.getCard();
@@ -160,16 +158,17 @@ public class TransactionController {
     @Transactional
     @DeleteMapping("/transactions/{uuid}")
     public ResponseEntity<Void> cancel(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
+        Optional<Transaction> possibleTransaction = this.entityManager.createQuery(
+                "select t from Transaction t where t.uuid = :uuid", Transaction.class)
                                                                             .setParameter("uuid", uuid)
                                                                             .getResultStream().findFirst();
-        Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-        if (!Transaction.Status.CREATED.equals(transaction.getStatus())) {
+        Transaction transaction = possibleTransaction.orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    
+        if (!transaction.cancel()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid transaction status");
         }
-
-        transaction.setStatus(Transaction.Status.CANCELED);
+    
         return ResponseEntity.ok().build();
     }
 }
