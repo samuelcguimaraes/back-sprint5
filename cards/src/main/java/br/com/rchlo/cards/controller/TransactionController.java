@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
 import javax.validation.Valid;
 import java.net.URI;
@@ -27,8 +26,6 @@ import java.util.Optional;
 @RestController
 public class TransactionController {
     
-    private final EntityManager entityManager;
-    
     private final CardRepository cardRepository;
     private final FraudVerifierRepository fraudVerifierRepository;
     private final TransactionRepository transactionRepository;
@@ -37,11 +34,10 @@ public class TransactionController {
     private final TextService textService;
     private final SendService sendService;
     
-    public TransactionController(EntityManager entityManager,
-                                 CardRepository cardRepository, FraudVerifierRepository fraudVerifierRepository,
-                                 TransactionRepository transactionRepository, FraudService fraudService,
-                                 TextService textService, SendService sendService) {
-        this.entityManager = entityManager;
+    public TransactionController(final CardRepository cardRepository,
+                                 final FraudVerifierRepository fraudVerifierRepository,
+                                 final TransactionRepository transactionRepository, final FraudService fraudService,
+                                 final TextService textService, final SendService sendService) {
         this.cardRepository = cardRepository;
         this.fraudVerifierRepository = fraudVerifierRepository;
         this.transactionRepository = transactionRepository;
@@ -51,70 +47,69 @@ public class TransactionController {
     }
     
     @GetMapping("/transactions/{uuid}")
-    public ResponseEntity<TransactionResponseDto> detail(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.entityManager.createQuery(
-                "select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                                                                            .setParameter("uuid", uuid)
-                                                                            .getResultStream().findFirst();
-        Transaction transaction = possibleTransaction.orElseThrow(
+    public ResponseEntity<TransactionResponseDto> detail(@PathVariable("uuid") final String uuid) {
+        final Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
+        
+        final Transaction transaction = possibleTransaction.orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return ResponseEntity.ok().body(new TransactionResponseDto(transaction));
     }
-
+    
     @Transactional
     @PostMapping("/transactions")
-    public ResponseEntity<TransactionResponseDto> create(@RequestBody @Valid TransactionRequestDto transactionRequest, UriComponentsBuilder uriBuilder) {
-    
+    public ResponseEntity<TransactionResponseDto> create(
+            @RequestBody @Valid final TransactionRequestDto transactionRequest, final UriComponentsBuilder uriBuilder) {
+        
         // inicio validacao se card existe
-        Optional<Card> possibleCard = this.cardRepository.findByHolderNameAndNumberAndExpirationAndSecurityCode(
+        final Optional<Card> possibleCard = this.cardRepository.findByHolderNameAndNumberAndExpirationAndSecurityCode(
                 transactionRequest.getCardHolderName(),
                 transactionRequest.getCardNumber(),
                 transactionRequest.getCardExpiration().toString(),
                 transactionRequest.getCardSecurityCode()
         );
-        Card card = possibleCard.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card"));
+        final Card card = possibleCard.orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card"));
         // fim validacao se card existe
-    
+        
         // inicio verificacao limite disponivel
         if (card.hasNotAvailableLimit(transactionRequest.getAmount())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Limit not available");
         }
         // fim verificacao limite disponivel
-    
+        
         // inicio verificacao de fraude
-        List<FraudVerifier> enabledFraudVerifiers = this.fraudVerifierRepository.findByEnabledTrue();
+        final List<FraudVerifier> enabledFraudVerifiers = this.fraudVerifierRepository.findByEnabledTrue();
         if (!this.fraudService.checkFraud(enabledFraudVerifiers, transactionRequest, card)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fraud detected");
         }
         // fim verificacao de fraude
-    
+        
         // salva transacao
-        Transaction transaction = transactionRequest.asEntity(card);
+        final Transaction transaction = transactionRequest.asEntity(card);
         this.transactionRepository.save(transaction);
-    
-        URI uri = uriBuilder.path("/transactions/{uuid}").buildAndExpand(transaction.getUuid()).toUri();
+        
+        final URI uri = uriBuilder.path("/transactions/{uuid}").buildAndExpand(transaction.getUuid()).toUri();
         return ResponseEntity.created(uri).body(new TransactionResponseDto(transaction));
     }
-
+    
     @Transactional
     @PutMapping("/transactions/{uuid}")
-    public ResponseEntity<Void> confirm(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
-    
-        Transaction transaction = possibleTransaction.orElseThrow(
+    public ResponseEntity<Void> confirm(@PathVariable("uuid") final String uuid) {
+        final Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
+        
+        final Transaction transaction = possibleTransaction.orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    
+        
         if (!transaction.confirm()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid transaction status");
         }
-    
+        
         // atualiza limite do cartao
-        Card card = transaction.getCard();
+        final Card card = transaction.getCard();
         card.updateAvailableLimit(transaction.getAmount());
-    
+        
         // inicio criacao texto de notificacao
-        //TextService textService = new TextService(transaction, this.freemarker);
-        String notificationText = this.textService.generateTextNotification(transaction);
+        final String notificationText = this.textService.generateTextNotification(transaction);
         // fim criacao texto de notificacao
     
         // inicio envio notificacao por email
@@ -123,19 +118,19 @@ public class TransactionController {
     
         return ResponseEntity.ok().build();
     }
-
+    
     @Transactional
     @DeleteMapping("/transactions/{uuid}")
-    public ResponseEntity<Void> cancel(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
-    
-        Transaction transaction = possibleTransaction.orElseThrow(
+    public ResponseEntity<Void> cancel(@PathVariable("uuid") final String uuid) {
+        final Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
+        
+        final Transaction transaction = possibleTransaction.orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    
+        
         if (!transaction.cancel()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid transaction status");
         }
-    
+        
         return ResponseEntity.ok().build();
     }
 }

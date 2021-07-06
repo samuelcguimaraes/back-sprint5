@@ -28,38 +28,46 @@ public class TransactionRequestDto {
     @Pattern(regexp = "\\d{16}")
     @JsonProperty
     private String cardNumber;
-
+    
     @NotNull
     @Future
     @JsonProperty
     private YearMonth cardExpiration;
-
+    
     @NotBlank
     @Pattern(regexp = "\\d{3}")
     @JsonProperty
     private String cardSecurityCode;
-
+    
+    public TransactionRequestDto() {
+    }
+    
+    public TransactionRequestDto(BigDecimal amount, String description) {
+        this.amount = amount;
+        this.description = description;
+    }
+    
     public BigDecimal getAmount() {
-        return amount;
+        return this.amount;
     }
-
+    
     public String getCardHolderName() {
-        return cardHolderName;
+        return this.cardHolderName;
     }
-
+    
     public String getCardNumber() {
-        return cardNumber;
+        return this.cardNumber;
     }
 
     public YearMonth getCardExpiration() {
-        return cardExpiration;
+        return this.cardExpiration;
     }
 
     public String getCardSecurityCode() {
-        return cardSecurityCode;
+        return this.cardSecurityCode;
     }
 
     public Transaction asEntity(Card card) {
-        return new Transaction(amount, description, card);
+        return new Transaction(this.amount, this.description, card);
     }
 }
