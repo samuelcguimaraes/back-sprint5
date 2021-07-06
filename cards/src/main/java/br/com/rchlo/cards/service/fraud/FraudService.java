@@ -5,45 +5,40 @@ import br.com.rchlo.cards.domain.FraudVerifier;
 import br.com.rchlo.cards.domain.Transaction;
 import br.com.rchlo.cards.dto.TransactionRequestDto;
 import br.com.rchlo.cards.repository.TransactionRepository;
+import org.springframework.stereotype.Service;
 
 import javax.persistence.NoResultException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Service
 public class FraudService {
 	
-	private final List<FraudVerifier> enabledFraudVerifiers;
-	private final TransactionRequestDto transactionRequest;
-	private final Card card;
 	private final TransactionRepository transactionRepository;
 	
-	public FraudService(List<FraudVerifier> enabledFraudVerifiers,
-	                    TransactionRequestDto transactionRequest,
-	                    Card card,
-	                    TransactionRepository transactionRepository) {
-		this.enabledFraudVerifiers = enabledFraudVerifiers;
-		this.transactionRequest = transactionRequest;
-		this.card = card;
+	public FraudService(TransactionRepository transactionRepository) {
 		this.transactionRepository = transactionRepository;
 	}
 	
-	public boolean checkFraud() {
+	public boolean checkFraud(List<FraudVerifier> enabledFraudVerifiers,
+	                          TransactionRequestDto transactionRequest,
+	                          Card card) {
 		
 		// fraude: gastar o limite de uma vez
-		if (this.enabledFraudVerifiers.stream().map(FraudVerifier::getType)
-		                              .anyMatch(FraudVerifier.Type.EXPENDS_ALL_LIMIT::equals)) {
-			if (this.transactionRequest.getAmount().compareTo(this.card.getAvailableLimit()) == 0) {
+		if (enabledFraudVerifiers.stream().map(FraudVerifier::getType)
+		                         .anyMatch(FraudVerifier.Type.EXPENDS_ALL_LIMIT::equals)) {
+			if (transactionRequest.getAmount().compareTo(card.getAvailableLimit()) == 0) {
 				return false;
 			}
 		}
 		
 		// fraude: duas transacoes com menos de 30 segundos
-		if (this.enabledFraudVerifiers.stream().map(FraudVerifier::getType)
-		                              .anyMatch(FraudVerifier.Type.TOO_FAST::equals)) {
+		if (enabledFraudVerifiers.stream().map(FraudVerifier::getType)
+		                         .anyMatch(FraudVerifier.Type.TOO_FAST::equals)) {
 			LocalDateTime timeOfLastConfirmedTransactionForCard = null;
 			try {
-				timeOfLastConfirmedTransactionForCard = this.transactionRepository.findMaxCreatedAt(this.card,
+				timeOfLastConfirmedTransactionForCard = this.transactionRepository.findMaxCreatedAt(card,
 				                                                                                    Transaction.Status.CONFIRMED);
 			} catch (NoResultException ex) {
 			}

@@ -9,13 +9,10 @@ import br.com.rchlo.cards.repository.CardRepository;
 import br.com.rchlo.cards.repository.FraudVerifierRepository;
 import br.com.rchlo.cards.repository.TransactionRepository;
 import br.com.rchlo.cards.service.fraud.FraudService;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import freemarker.template.TemplateException;
+import br.com.rchlo.cards.service.notification.SendService;
+import br.com.rchlo.cards.service.notification.TextService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.MailSender;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -23,34 +20,34 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
 import javax.validation.Valid;
-import java.io.IOException;
-import java.io.StringWriter;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
 public class TransactionController {
     
     private final EntityManager entityManager;
-    private final Configuration freemarker;
-    private final MailSender mailSender;
     
     private final CardRepository cardRepository;
     private final FraudVerifierRepository fraudVerifierRepository;
     private final TransactionRepository transactionRepository;
     
-    public TransactionController(EntityManager entityManager, Configuration freemarker, MailSender mailSender,
+    private final FraudService fraudService;
+    private final TextService textService;
+    private final SendService sendService;
+    
+    public TransactionController(EntityManager entityManager,
                                  CardRepository cardRepository, FraudVerifierRepository fraudVerifierRepository,
-                                 TransactionRepository transactionRepository) {
+                                 TransactionRepository transactionRepository, FraudService fraudService,
+                                 TextService textService, SendService sendService) {
         this.entityManager = entityManager;
-        this.freemarker = freemarker;
-        this.mailSender = mailSender;
         this.cardRepository = cardRepository;
         this.fraudVerifierRepository = fraudVerifierRepository;
         this.transactionRepository = transactionRepository;
+        this.fraudService = fraudService;
+        this.textService = textService;
+        this.sendService = sendService;
     }
     
     @GetMapping("/transactions/{uuid}")
@@ -86,11 +83,7 @@ public class TransactionController {
     
         // inicio verificacao de fraude
         List<FraudVerifier> enabledFraudVerifiers = this.fraudVerifierRepository.findByEnabledTrue();
-    
-        FraudService fraudService = new FraudService(enabledFraudVerifiers, transactionRequest, card,
-                                                           this.transactionRepository);
-    
-        if (!fraudService.checkFraud()) {
+        if (!this.fraudService.checkFraud(enabledFraudVerifiers, transactionRequest, card)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fraud detected");
         }
         // fim verificacao de fraude
@@ -106,53 +99,36 @@ public class TransactionController {
     @Transactional
     @PutMapping("/transactions/{uuid}")
     public ResponseEntity<Void> confirm(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.entityManager.createQuery("select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                                                                            .setParameter("uuid", uuid)
-                                                                            .getResultStream().findFirst();
-        Transaction transaction = possibleTransaction.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
+        Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
+    
+        Transaction transaction = possibleTransaction.orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    
         if (!transaction.confirm()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid transaction status");
         }
-
+    
         // atualiza limite do cartao
         Card card = transaction.getCard();
         card.updateAvailableLimit(transaction.getAmount());
-
+    
         // inicio criacao texto de notificacao
-        String notificationText = "";
-        try {
-            Template template = this.freemarker.getTemplate("expense-notification.ftl");
-            Map<String, Object> data = new HashMap<>();
-            data.put("transaction", transaction);
-            StringWriter out = new StringWriter();
-            template.process(data, out);
-            notificationText = out.toString();
-        } catch (IOException | TemplateException ex) {
-            throw new IllegalStateException(ex);
-        }
+        //TextService textService = new TextService(transaction, this.freemarker);
+        String notificationText = this.textService.generateTextNotification(transaction);
         // fim criacao texto de notificacao
-
+    
         // inicio envio notificacao por email
-        var message = new SimpleMailMessage();
-        message.setFrom("noreply@rchlo.com.br");
-        message.setTo(card.getCustomer().getEmail());
-        message.setSubject("Nova despesa: " + transaction.getDescription());
-        message.setText(notificationText);
-        this.mailSender.send(message);   // para verificar o email enviado acesse: https://www.smtpbucket.com/emails.
-                                    // Coloque noreply@rchlo.com.br em Sender e o email do cliente no Recipient.
+        this.sendService.sendMessage(card.getCustomer().getEmail(), transaction.getDescription(), notificationText);
         // fim envio notificacao por email
-
+    
         return ResponseEntity.ok().build();
     }
 
     @Transactional
     @DeleteMapping("/transactions/{uuid}")
     public ResponseEntity<Void> cancel(@PathVariable("uuid") String uuid) {
-        Optional<Transaction> possibleTransaction = this.entityManager.createQuery(
-                "select t from Transaction t where t.uuid = :uuid", Transaction.class)
-                                                                            .setParameter("uuid", uuid)
-                                                                            .getResultStream().findFirst();
+        Optional<Transaction> possibleTransaction = this.transactionRepository.findByUuid(uuid);
+    
         Transaction transaction = possibleTransaction.orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     
