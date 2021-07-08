@@ -1,6 +1,6 @@
 package br.com.rchlo.cards.builder;
 
-import br.com.rchlo.cards.domain.Customer;
+import br.com.rchlo.cards.domain.card.Customer;
 
 public class CustomerBuilder {
 	

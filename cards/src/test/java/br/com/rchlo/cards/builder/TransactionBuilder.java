@@ -1,7 +1,7 @@
 package br.com.rchlo.cards.builder;
 
-import br.com.rchlo.cards.domain.Card;
-import br.com.rchlo.cards.domain.Transaction;
+import br.com.rchlo.cards.domain.card.Card;
+import br.com.rchlo.cards.domain.transaction.Transaction;
 
 import java.math.BigDecimal;
 
